@@ -1,0 +1,55 @@
+<!--Pololu Maestro servo controller settings file, http://www.pololu.com/catalog/product/1350-->
+<UscSettings version="1">
+  <NeverSuspend>false</NeverSuspend>
+  <SerialMode>UART_FIXED_BAUD_RATE</SerialMode>
+  <FixedBaudRate>115385</FixedBaudRate>
+  <SerialTimeout>0</SerialTimeout>
+  <EnableCrc>false</EnableCrc>
+  <SerialDeviceNumber>12</SerialDeviceNumber>
+  <SerialMiniSscOffset>0</SerialMiniSscOffset>
+  <Channels ServosAvailable="4" ServoPeriod="117">
+    <!--Period = 9.984 ms-->
+    <!--Channel 0-->
+    <Channel name="Rudder" mode="Servo" min="4032" max="8000" homemode="Goto" home="6000" speed="40" acceleration="0" neutral="6000" range="2032" />
+    <!--Channel 1-->
+    <Channel name="Port" mode="Servo" min="5568" max="6784" homemode="Goto" home="6000" speed="46" acceleration="0" neutral="6224" range="2032" />
+    <!--Channel 2-->
+    <Channel name="Starboard" mode="Servo" min="4800" max="6208" homemode="Goto" home="6000" speed="46" acceleration="0" neutral="5812" range="2032" />
+    <!--Channel 3-->
+    <Channel name="ESC" mode="Servo" min="4032" max="8000" homemode="Goto" home="6000" speed="0" acceleration="0" neutral="6016" range="2032" />
+    <!--Channel 4-->
+    <Channel name="" mode="Input" min="0" max="1024" homemode="Ignore" home="0" speed="0" acceleration="0" neutral="1024" range="1905" />
+    <!--Channel 5-->
+    <Channel name="" mode="Input" min="0" max="1024" homemode="Ignore" home="0" speed="0" acceleration="0" neutral="1024" range="1905" />
+  </Channels>
+  <Sequences />
+  <Script ScriptDone="false"># Hydrofoil Boat Watchdog
+# Channel 3 = ESC (throttle)
+# Channel 1 = Port Aileron Servo
+0                       # counter = 0
+1 get_position
+BEGIN
+ 100 delay            # wait 0.1 second (adjust as needed)
+  
+  1 get_position
+
+  # compare old vs new
+  equals
+  if
+		1 PLUS
+  else
+		DROP #delete the counter
+		0    #Reset the counter
+  endif
+	
+	  DUP #Need to duplicate the counter here or else we will delete it
+  # Check counter is bigger than 20
+  20 greater_than
+  if
+  	6004 3 servo           # cut throttle
+		DROP
+		0                   # reset counter
+  endif
+  1 get_position
+  REPEAT</Script>
+</UscSettings>
