@@ -12,31 +12,6 @@ pidStruct altitudePID = { 0.0005, 0.0005, 0.000015, 0, 0.0349, 0.00004, 20.0, 0,
 pidStruct yawPID = { 720.0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, false, 0, { 0 }, { 0 }, { 0 }, { 0 }, { 0 } };
 
 
-// Define time logging code
-// IMPORTANT NOTE, uncomment below to enable accurate loop timestamping
-// #define ENABLE_TIME_LOGGING 
-
-
-#ifdef ENABLE_TIME_LOGGING
-unsigned long timeLogIndex = 0;
-unsigned long timeLoggingArray[4000][2] = {0}; // The first index holds the timesamps, the second index holds the code value
-#endif
-
-// Code definition - WARNING, these are currently broken due to sensor readings now happening at the start of the loop. 
-// 10  Start of loop
-// 20  Read receiver
-// 25  Actually read IMU on this cycle
-// 30  Read IMU
-// 40  Calculated roll pid	
-// 50  Read ultrasonic sensor
-// 60  Calculated altitude pid
-// 70  Calculated pitch pid
-// 75  Calculated yaw pid
-// 80  Calculated remaining outputs
-// 90  Updated servos 
-// 1000 Loop duration
-// 1010 Actual full loop duration
-
 // Define the minimalist time logging code
 // IMPORTANT NOTE, uncomment below to enable accurate minimalist cycle time logging
 //#define SENSOR_TIME_LOGGING
@@ -481,27 +456,6 @@ void handleForm() {
 
   // Show confirmation
   String response = "<html><body><h2>PID Values Updated</h2>";
-  // for (int i = 0; i < PIDQUANTITY; i++) {
-  //   pidStruct* outPID = getPidData(i);
-  //   response += "<b>" + String(outPID->label) + "</b><br>";
-  //   response += "Kp: " + String(outPID->kp, 8) + "<br>";
-  //   response += "Ki: " + String(outPID->ki, 8) + "<br>";
-  //   response += "Kd: " + String(outPID->kd, 8) + "<br>";
-  //   response += "I Clamp: " + String(outPID->ki_clamping_bound, 8) + "<br>";
-  //   response += "Proportional Term Parabolic Gain: " + String(outPID->pParabolaGain, 8) + "<br>";
-  //   response += "Proportional Term Parabolic Threshold: " + String(outPID->pParabolaThreshold, 8) + "<br><br>";
-  // }
-  // response += "Cruising Height: " + String(cruisingHeight) + "<br>";
-  // response += "Maximum Pitch Angle: " + String(maximumPitchAngle * 180 / 3.141592) + "<br><br>";
-
-  // response += "Maximum Yaw Angle: " + String(yawMapMax * 180 / 3.141592) + "<br>";
-  // response += "Median Filter Size: " + String(medianFilterSize) + "<br><br>";
-
-  // response += "Neutral Pitch: " + String(neutralPitch) + "<br>";
-  // response += "Port Neutral Offset: " + String(portNeutralOffset) + "<br><br>";
-
-  // response += "Rudder Centre (Zero) Point: " + String(rudderZeroPoint) + "<br><br>";
-
   response += "<a href='/'>Go Back</a></body></html>";
   server.send(200, "text/html", response);
 }
@@ -524,32 +478,11 @@ void handleReset() {
   currentWaypoint = 0;
 }
 
-// Handle logging data download
+// Handle logging data download. This just sends all the data over serial (USB). 
 void handleDownload() {
-  // We no longer send over the server. Now we just send over serial, so all the server.sendContents are replaced with Serial.print
-  // Use the following command in a platformio terminal:
-  // pio device monitor --port COM5 --baud 115200 | tee output.csv
-  // server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  // server.send(200, "text/csv", ""); // Initiate stream
-
   //Let the browser know all is good so the browser doesn't try to spam requests
   server.send(200, "text/plain", "Serial download started. Check your PlatformIO terminal.");
-
-  // Log the timing data if it's enabled
-  #ifdef ENABLE_TIME_LOGGING
-    Serial.print("Currently logging the loop timestamps \n");
-    // We don't know if we rolled over or not so I will log it all
-    for (int i = 0; i < 4000; i++) {
-      String line = String(timeLoggingArray[i][0]) + ", " +
-      String(timeLoggingArray[i][1]) +
-      "\n";
-      Serial.print(line);
-    }
-    Serial.print("\n");
-    Serial.print("Finished logging loop timestamps \n");
-    Serial.print("\n");
-  #endif
-
+  
   // Log the sensor timing data if enabled
   #ifdef SENSOR_TIME_LOGGING
     Serial.print("Currently logging the sensor loop timestamps \n");
@@ -756,23 +689,11 @@ void setup() {
     // 1 = initial memory load failed
     // 2 = DMP configuration updates failed
   }
-
-  #ifdef ENABLE_TIME_LOGGING
-    Serial.println("WARNING - Time logging is enabled");
-  #endif
 }
 
 // Main Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Main Loop ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 void loop() {
-
-  #ifdef ENABLE_TIME_LOGGING
-    // Log loop start
-    timeLoggingArray[timeLogIndex][0] = micros();
-    timeLoggingArray[timeLogIndex][1] = 10;
-    timeLogIndex += 1;
-    timeLogIndex = timeLogIndex % 4000;
-  #endif
 
   unsigned long loopStart = micros();  //Clock the loop start time to enforce cycle frequency
   unsigned long escOutput;
@@ -891,15 +812,6 @@ void loop() {
 
     }
 
-  #ifdef ENABLE_TIME_LOGGING
-    // Log finished receiver reading
-    timeLoggingArray[timeLogIndex][0] = micros();
-    timeLoggingArray[timeLogIndex][1] = 20;
-    timeLogIndex += 1;
-    timeLogIndex = timeLogIndex % 4000;
-  #endif
-
-
   // We have three states based on the aux1 reading (note 1000 is all the way up)
   // IDLE State ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ IDLE State ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ IDLE State ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ IDLE State ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ IDLE State ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   if (aux1Pulse < 1300) {
@@ -952,26 +864,11 @@ void loop() {
     float rollVal = rollPID.pidOutput;
     // No need to limit as Servo control does that for us
 
-    #ifdef ENABLE_TIME_LOGGING
-        // Log finished calculating roll PID
-        timeLoggingArray[timeLogIndex][0] = micros();
-        timeLoggingArray[timeLogIndex][1] = 40;
-        timeLogIndex += 1;
-        timeLogIndex = timeLogIndex % 4000;
-    #endif
-
     if (newUltrasoundDistanceAvailable) {
       ussHeight = getHeightUSS(ypr[1], ypr[2]);
       // Set the altitude PID loop to run next cycle
       altitudePID.runPidCycle = true;
     }
-    #ifdef ENABLE_TIME_LOGGING
-        // Log finished reading ultrasonic sensor
-        timeLoggingArray[timeLogIndex][0] = micros();
-        timeLoggingArray[timeLogIndex][1] = 50;
-        timeLogIndex += 1;
-        timeLogIndex = timeLogIndex % 4000;
-    #endif
 
     // Do altitude PID calculation
     if (altitudePID.runPidCycle) {
@@ -985,14 +882,7 @@ void loop() {
     float pitchAngleSetpoint = altitudePID.pidOutput;
     pitchAngleSetpoint = max(pitchAngleSetpoint, -maximumPitchAngle);
     pitchAngleSetpoint = min(pitchAngleSetpoint, maximumPitchAngle);
-    #ifdef ENABLE_TIME_LOGGING
-      // Log finished calculating altitude PID
-      timeLoggingArray[timeLogIndex][0] = micros();
-      timeLoggingArray[timeLogIndex][1] = 60;
-      timeLogIndex += 1;
-      timeLogIndex = timeLogIndex % 4000;
-    #endif
-
+    
     // Handle the pitch PID
     if (pitchPID.runPidCycle) {
       pitchPID.setpoint = pitchAngleSetpoint;
@@ -1001,14 +891,6 @@ void loop() {
     }
     float pitchVal = pitchPID.pidOutput;
     // No need to limit as the servo controller will do that for us
-
-    #ifdef ENABLE_TIME_LOGGING
-      // Log finished calculating pitch PID
-      timeLoggingArray[timeLogIndex][0] = micros();
-      timeLoggingArray[timeLogIndex][1] = 70;
-      timeLogIndex += 1;
-      timeLogIndex = timeLogIndex % 4000;
-    #endif
 
     // Handle the Yaw PID and whatnot  
     if (autonomousGpsEnabled) { // This case handles autonomous driving 
@@ -1089,14 +971,6 @@ void loop() {
     
     rudderOutput = constrain(rudderOutput, rudderZeroPoint - rudderCap, rudderZeroPoint + rudderCap);
 
-    #ifdef ENABLE_TIME_LOGGING
-      // Log finished calculating pitch PID
-      timeLoggingArray[timeLogIndex][0] = micros();
-      timeLoggingArray[timeLogIndex][1] = 75;
-      timeLogIndex += 1;
-      timeLogIndex = timeLogIndex % 4000;
-    #endif
-
     // Now calculate aileron setpoints
     signed long pitchAileronPWM = (signed long)pitchVal;
     signed long rollAileronPWM = (signed long)rollVal;
@@ -1112,14 +986,6 @@ void loop() {
     if (aux2Pulse > 1500) {
       escOutput = 3000 - escOutput;
     }
-
-    #ifdef ENABLE_TIME_LOGGING
-      // Log finished all PID calculations
-      timeLoggingArray[timeLogIndex][0] = micros();
-      timeLoggingArray[timeLogIndex][1] = 80;
-      timeLogIndex += 1;
-      timeLogIndex = timeLogIndex % 4000;
-    #endif
   }
 
   // Write to the servos
@@ -1128,34 +994,10 @@ void loop() {
   updateServo(RUDDERSERVO, rudderOutput);
   updateServo(ESCOUT, escOutput);
 
-  #ifdef ENABLE_TIME_LOGGING
-      // Log finished updating servos
-      timeLoggingArray[timeLogIndex][0] = micros();
-      timeLoggingArray[timeLogIndex][1] = 90;
-      timeLogIndex += 1;
-      timeLogIndex = timeLogIndex % 4000;
-  #endif
-
-  #ifdef ENABLE_TIME_LOGGING
-    // Log the loop duration
-    timeLoggingArray[timeLogIndex][0] = micros() - loopStart;
-    timeLoggingArray[timeLogIndex][1] = 1000;
-    timeLogIndex += 1;
-    timeLogIndex = timeLogIndex % 4000;
-  #endif
-
   unsigned long loopDuration = micros() - loopStart;  
   if (loopDuration < loopPeriod) {
     delayMicroseconds(loopPeriod - loopDuration);
   }
-
-  #ifdef ENABLE_TIME_LOGGING
-    // Log the actual loop duration
-    timeLoggingArray[timeLogIndex][0] = micros() - loopStart;
-    timeLoggingArray[timeLogIndex][1] = 1010;
-    timeLogIndex += 1;
-    timeLogIndex = timeLogIndex % 4000;
-  #endif
 }
 
 // Function Definitions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Function Definitions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Function Definitions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Function Definitions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
